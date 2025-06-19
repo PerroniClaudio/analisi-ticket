@@ -1,61 +1,97 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🎯 Analisi Ticket AI - Setup Guide
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Questo è un sistema di analisi automatica dei ticket usando Vertex AI di Google Cloud con streaming in tempo reale.
 
-## About Laravel
+## 📋 Prerequisiti
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+-   PHP 8.3+
+-   Composer
+-   Node.js e pnpm
+-   Account Google Cloud con Vertex AI abilitato
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## ⚙️ Configurazione
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 1. Clona il repository
 
-## Learning Laravel
+```bash
+git clone <your-repo-url>
+cd analisi-ticket
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 2. Installa le dipendenze
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+```bash
+# PHP dependencies
+composer install
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+# JavaScript dependencies
+pnpm install
+```
 
-## Laravel Sponsors
+### 3. Configura le variabili d'ambiente
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+# Copia il file di esempio
+cp .env.example .env
 
-### Premium Partners
+# Modifica il file .env con i tuoi valori:
+VERTEX_AI_PROJECT_ID=your-gcp-project-id
+VERTEX_AI_BUCKET_NAME=your-bucket-name
+VERTEX_AI_DATASET_PATH=your-dataset-file.jsonl
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### 4. Configura Google Cloud
 
-## Contributing
+1. Scarica il file delle credenziali del service account da Google Cloud
+2. Salvalo come `keys/service-account.json`
+3. Assicurati che il service account abbia i permessi per:
+    - Vertex AI (AI Platform Developer)
+    - Cloud Storage (Storage Object Viewer)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 5. Compila gli asset
 
-## Code of Conduct
+```bash
+pnpm run build
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 6. Avvia l'applicazione
 
-## Security Vulnerabilities
+```bash
+php artisan serve
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Vai su `http://localhost:8000/ticket-analysis` per iniziare!
 
-## License
+## 🚀 Funzionalità
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+-   **Streaming in tempo reale**: Visualizza i risultati mentre vengono elaborati
+-   **Interfaccia moderna**: UI responsive con Tailwind CSS
+-   **Esportazione CSV**: Scarica tutti i risultati
+-   **Statistiche live**: Monitora il progresso in tempo reale
+-   **Multi-modello**: Supporta diversi modelli Vertex AI
+
+## 📁 Struttura del progetto
+
+```
+├── app/
+│   ├── Http/Controllers/     # Controller per API e streaming
+│   └── Services/            # Servizi per Vertex AI
+├── resources/
+│   ├── views/              # Template Blade
+│   └── js/                # JavaScript per streaming
+├── script/                # Script standalone PHP
+└── keys/                 # Credenziali (escluse da git)
+```
+
+## 🔧 Configurazione Avanzata
+
+Vedi i file di documentazione specifici:
+
+-   `SIMPLE_ANALYSIS.md` - API di analisi semplificata
+-   `VERTEX_AI_API.md` - Configurazione dettagliata Vertex AI
+
+## 📝 Note di Sicurezza
+
+-   Il file `keys/service-account.json` è escluso da git
+-   Tutte le configurazioni sensibili sono gestite tramite variabili d'ambiente
+-   Non committare mai credenziali nel codice
