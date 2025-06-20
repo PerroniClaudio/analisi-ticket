@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Exception;
+use App\Jobs\AnalyzeTicketsJob;
+use App\Models\TicketPrediction;
 
 class SimpleTicketAnalysisController extends Controller {
     private $vertexAiService;
@@ -288,5 +290,178 @@ class SimpleTicketAnalysisController extends Controller {
             'Connection' => 'keep-alive',
             'X-Accel-Buffering' => 'no', // Nginx
         ]);
+    }
+
+    /**
+     * Avvia l'analisi dei ticket usando un job in background
+     */
+    public function analyzeTicketsJob(Request $request): JsonResponse {
+        try {
+            $bucketName = $request->get('bucket_name', config('services.vertex_ai.bucket_name'));
+            $filePath = $request->get('file_path', config('services.vertex_ai.dataset_path'));
+            $modelName = $request->get('model', 'gemini-2.0-flash-lite-001');
+            $batchId = time(); // Usa timestamp come batch ID
+
+            Log::info('Avvio job analisi ticket', [
+                'bucket' => $bucketName,
+                'file' => $filePath,
+                'model' => $modelName,
+                'batch_id' => $batchId
+            ]);
+
+            // Dispatch del job
+            AnalyzeTicketsJob::dispatch($bucketName, $filePath, $modelName, $batchId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Job di analisi avviato con successo',
+                'data' => [
+                    'batch_id' => $batchId,
+                    'bucket_name' => $bucketName,
+                    'file_path' => $filePath,
+                    'model' => $modelName,
+                    'started_at' => now()->toISOString()
+                ]
+            ]);
+        } catch (Exception $e) {
+            Log::error('Errore nell\'avvio del job di analisi', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Errore nell\'avvio del job: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Ottieni lo stato dell'analisi e i risultati salvati nel database
+     */
+    public function getAnalysisResults(Request $request): JsonResponse {
+        try {
+            $page = $request->get('page', 1);
+            $perPage = $request->get('per_page', 50);
+            $status = $request->get('status');
+            $company = $request->get('company');
+
+            $query = TicketPrediction::query()
+                ->orderBy('created_at', 'desc');
+
+            // Filtri
+            if ($status) {
+                $query->where('status', $status);
+            }
+
+            if ($company) {
+                $query->byCompany($company);
+            }
+
+            $results = $query->paginate($perPage, ['*'], 'page', $page);
+
+            // Statistiche
+            $stats = [
+                'total' => TicketPrediction::count(),
+                'processed' => TicketPrediction::where('status', 'processed')->count(),
+                'failed' => TicketPrediction::where('status', 'failed')->count(),
+                'pending' => TicketPrediction::where('status', 'pending')->count(),
+            ];
+
+            $stats['success_rate'] = $stats['total'] > 0
+                ? round(($stats['processed'] / $stats['total']) * 100, 2)
+                : 0;
+
+            // Media dei minuti stimati
+            $avgMinutes = TicketPrediction::successful()
+                ->avg('predicted_minutes');
+
+            $stats['average_minutes'] = $avgMinutes ? round($avgMinutes, 1) : 0;
+            $stats['average_hours'] = $avgMinutes ? round($avgMinutes / 60, 2) : 0;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'results' => $results->items(),
+                    'pagination' => [
+                        'current_page' => $results->currentPage(),
+                        'last_page' => $results->lastPage(),
+                        'per_page' => $results->perPage(),
+                        'total' => $results->total(),
+                        'from' => $results->firstItem(),
+                        'to' => $results->lastItem(),
+                    ],
+                    'statistics' => $stats
+                ]
+            ]);
+        } catch (Exception $e) {
+            Log::error('Errore nel recupero risultati analisi', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Errore nel recupero dei risultati: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Ottieni statistiche dettagliate sui risultati
+     */
+    public function getAnalysisStatistics(): JsonResponse {
+        try {
+            $stats = [
+                'overview' => [
+                    'total_tickets' => TicketPrediction::count(),
+                    'processed' => TicketPrediction::where('status', 'processed')->count(),
+                    'failed' => TicketPrediction::where('status', 'failed')->count(),
+                    'pending' => TicketPrediction::where('status', 'pending')->count(),
+                ],
+                'timing' => [
+                    'average_minutes' => TicketPrediction::successful()->avg('predicted_minutes'),
+                    'min_minutes' => TicketPrediction::successful()->min('predicted_minutes'),
+                    'max_minutes' => TicketPrediction::successful()->max('predicted_minutes'),
+                ],
+                'by_company' => TicketPrediction::successful()
+                    ->selectRaw('company_name, COUNT(*) as count, AVG(predicted_minutes) as avg_minutes')
+                    ->groupBy('company_name')
+                    ->orderBy('count', 'desc')
+                    ->limit(10)
+                    ->get(),
+                'by_type' => TicketPrediction::successful()
+                    ->selectRaw('ticket_type, COUNT(*) as count, AVG(predicted_minutes) as avg_minutes')
+                    ->groupBy('ticket_type')
+                    ->orderBy('count', 'desc')
+                    ->get(),
+                'recent_activity' => TicketPrediction::orderBy('created_at', 'desc')
+                    ->limit(10)
+                    ->get(['ticket_id', 'status', 'predicted_minutes', 'created_at'])
+            ];
+
+            // Calcola percentuali
+            if ($stats['overview']['total_tickets'] > 0) {
+                $total = $stats['overview']['total_tickets'];
+                $stats['overview']['success_rate'] = round(($stats['overview']['processed'] / $total) * 100, 2);
+                $stats['overview']['failure_rate'] = round(($stats['overview']['failed'] / $total) * 100, 2);
+                $stats['overview']['pending_rate'] = round(($stats['overview']['pending'] / $total) * 100, 2);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats
+            ]);
+        } catch (Exception $e) {
+            Log::error('Errore nel recupero statistiche', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Errore nel recupero delle statistiche: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

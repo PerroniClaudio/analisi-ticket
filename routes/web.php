@@ -38,8 +38,17 @@ Route::prefix('api/simple-analysis')->group(function () {
     // Analizza tutti i ticket dal bucket
     Route::post('/analyze-bucket', [SimpleTicketAnalysisController::class, 'analyzeTicketsFromBucket']);
 
+    // Analizza con job in background
+    Route::post('/analyze-job', [SimpleTicketAnalysisController::class, 'analyzeTicketsJob']);
+
     // Analizza con streaming (Server-Sent Events)
     Route::get('/analyze-stream', [SimpleTicketAnalysisController::class, 'analyzeTicketsStream']);
+
+    // Ottieni risultati dal database
+    Route::get('/results', [SimpleTicketAnalysisController::class, 'getAnalysisResults']);
+
+    // Ottieni statistiche dettagliate
+    Route::get('/statistics', [SimpleTicketAnalysisController::class, 'getAnalysisStatistics']);
 
     // Lista modelli disponibili
     Route::get('/models', [SimpleTicketAnalysisController::class, 'getAvailableModels']);

@@ -5,7 +5,7 @@
  */
 
 // Configurazione
-$apiUrl = 'http://localhost/api/simple-analysis/analyze-bucket';
+$apiUrl = 'https://analisi-ticket.test/api/simple-analysis/analyze-bucket';
 // Carica le variabili d'ambiente
 require_once __DIR__ . '/../vendor/autoload.php';
 

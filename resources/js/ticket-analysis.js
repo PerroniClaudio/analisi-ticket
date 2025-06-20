@@ -1,6 +1,22 @@
 /**
  * Sistema di Analisi Ticket con Streaming in Tempo Reale
- * Gestisce la connessione Server-Sent Events per ricevere dati in streaming
+ * Gestisce la connessione Se        // Export button
+        this.exportBtn.addEventListener('click', () => {
+            this.exportResults();
+        });
+
+        // Analyze job button
+        this.        // Mostra le statistiche live
+        this.liveStats.classList.remove('hidden');
+                this.exportBtn.classList.remove('hidden');
+        this.exportBtn.classList.add('flex');his.liveStats.classList.add('grid', 'grid-cols-4');alyzeJobBtn.addEventListener('click', () => {
+            this.startJobAnalysis();
+        });
+
+        // Load results button
+        this.loadResultsBtn.addEventListener('click', () => {
+            this.loadDatabaseResults();
+        });-Sent Events per ricevere dati in streaming
  */
 
 class TicketAnalysisManager {
@@ -23,6 +39,8 @@ class TicketAnalysisManager {
         // Form elements
         this.form = document.getElementById("analysisForm");
         this.analyzeBtn = document.getElementById("analyzeBtn");
+        this.analyzeJobBtn = document.getElementById("analyzeJobBtn");
+        this.loadResultsBtn = document.getElementById("loadResultsBtn");
         this.exportBtn = document.getElementById("exportBtn");
 
         // Input elements
@@ -90,6 +108,16 @@ class TicketAnalysisManager {
         // Export button
         this.exportBtn.addEventListener("click", () => {
             this.exportResults();
+        });
+
+        // Analyze job button
+        this.analyzeJobBtn.addEventListener("click", () => {
+            this.startJobAnalysis();
+        });
+
+        // Load results button
+        this.loadResultsBtn.addEventListener("click", () => {
+            this.loadDatabaseResults();
         });
 
         // Search and filter
@@ -607,6 +635,159 @@ class TicketAnalysisManager {
         }
         this.isAnalyzing = false;
     }
+
+    async startJobAnalysis() {
+        const formData = new FormData(this.form);
+
+        try {
+            this.showJobStartedState();
+
+            const response = await window.axios.post(
+                "https://analisi-ticket.test/api/simple-analysis/analyze-job",
+                formData
+            );
+
+            if (response.data.success) {
+                this.showJobStartedSuccess(response.data.data);
+            } else {
+                this.handleJobError(response.data.message);
+            }
+        } catch (error) {
+            console.error("Errore nell'avvio del job:", error);
+            this.handleJobError(error.response?.data?.message || error.message);
+        }
+    }
+
+    async loadDatabaseResults() {
+        try {
+            this.showLoadingResultsState();
+
+            const response = await window.axios.get(
+                "https://analisi-ticket.test/api/simple-analysis/results"
+            );
+
+            if (response.data.success) {
+                this.handleDatabaseResults(response.data.data);
+            } else {
+                this.handleJobError(response.data.message);
+            }
+        } catch (error) {
+            console.error("Errore nel caricamento risultati:", error);
+            this.handleJobError(error.response?.data?.message || error.message);
+        }
+    }
+
+    showJobStartedState() {
+        this.hideAllStates();
+
+        const notification = this.createNotification(
+            "info",
+            "Job Avviato",
+            "L'analisi è stata avviata in background. I risultati saranno salvati nel database.",
+            5000
+        );
+
+        document.body.appendChild(notification);
+    }
+
+    showJobStartedSuccess(data) {
+        const notification = this.createNotification(
+            "success",
+            "Job Avviato con Successo",
+            `Batch ID: ${data.batch_id}. Controlla i log per il progresso.`,
+            7000
+        );
+
+        document.body.appendChild(notification);
+    }
+
+    showLoadingResultsState() {
+        this.hideAllStates();
+        this.loadingState.classList.remove("hidden");
+        this.updateProgressText("Caricamento risultati dal database...");
+    }
+
+    handleDatabaseResults(data) {
+        this.currentResults = data.results.map((result) => ({
+            ticket_id: result.ticket_id,
+            estimated_minutes: result.predicted_minutes,
+            status: result.status === "processed" ? "success" : "error",
+            error: result.error_message,
+        }));
+
+        this.hideAllStates();
+        this.resultsCard.classList.remove("hidden");
+        this.exportBtn.classList.remove("hidden");
+
+        this.filterResults();
+
+        // Mostra notifica con statistiche
+        const stats = data.statistics;
+        const notification = this.createNotification(
+            "success",
+            "Risultati Caricati",
+            `${stats.total} ticket trovati (${stats.processed} processati, ${stats.failed} falliti)`,
+            5000
+        );
+
+        document.body.appendChild(notification);
+    }
+
+    handleJobError(message) {
+        this.hideAllStates();
+        this.showErrorState(message);
+    }
+
+    createNotification(type, title, message, duration = 5000) {
+        const colors = {
+            success: "bg-green-500",
+            error: "bg-red-500",
+            info: "bg-blue-500",
+            warning: "bg-yellow-500",
+        };
+
+        const icons = {
+            success: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>`,
+            error: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>`,
+            info: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>`,
+            warning: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>`,
+        };
+
+        const notification = document.createElement("div");
+        notification.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 max-w-md`;
+        notification.innerHTML = `
+            <div class="flex items-start space-x-3">
+                <svg class="w-6 h-6 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    ${icons[type]}
+                </svg>
+                <div class="flex-1">
+                    <div class="font-medium">${title}</div>
+                    <div class="text-sm opacity-90 mt-1">${message}</div>
+                </div>
+                <button class="ml-4 text-white hover:text-gray-200" onclick="this.parentElement.parentElement.remove()">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        `;
+
+        // Auto remove
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.transform = "translateX(100%)";
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 300);
+            }
+        }, duration);
+
+        return notification;
+    }
+
+    // ...existing code...
 }
 
 // Inizializza il manager quando il DOM è pronto

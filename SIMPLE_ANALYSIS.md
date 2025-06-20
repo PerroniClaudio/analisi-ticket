@@ -24,7 +24,7 @@ VERTEX_AI_KEY_FILE_PATH=keys/service-account.json
 ### Metodo 1: Frontend Web (Raccomandato)
 
 ```
-http://localhost/ticket-analysis
+https://analisi-ticket.test/ticket-analysis
 ```
 
 Interfaccia web con streaming in tempo reale che mostra i risultati man mano che vengono elaborati.
@@ -44,7 +44,7 @@ php script/analyzeTickets.php
 ### Metodo 4: API REST Streaming
 
 ```bash
-curl -N "http://localhost/api/simple-analysis/analyze-stream?bucket_name=your-bucket-name&file_path=your-dataset-file.jsonl&model=gemini-2.0-flash-exp"
+curl -N "https://analisi-ticket.test/api/simple-analysis/analyze-stream?bucket_name=your-bucket-name&file_path=your-dataset-file.jsonl&model=gemini-2.0-flash-exp"
 ```
 
 ## Streaming in Tempo Reale

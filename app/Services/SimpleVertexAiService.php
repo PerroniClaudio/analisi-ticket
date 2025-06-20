@@ -191,6 +191,7 @@ ISTRUZIONI:
 - Considera che i tempi tipici vanno da 15 a 480 minuti
 - Rispondi SOLO con un numero intero di minuti
 - Non aggiungere testo, spiegazioni o unità di misura
+- Il risultato deve essere un multiplo di 10
 
 RISPOSTA (solo numero):";
     }

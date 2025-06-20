@@ -60,7 +60,7 @@ pnpm run build
 php artisan serve
 ```
 
-Vai su `http://localhost:8000/ticket-analysis` per iniziare!
+Vai su `https://analisi-ticket.test/ticket-analysis` per iniziare!
 
 ## 🚀 Funzionalità
 
