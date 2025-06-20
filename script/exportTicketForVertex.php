@@ -18,10 +18,10 @@ $filterCompany = 'Labor Medical Srl';  // Nome dell'azienda da filtrare
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->load();
 
-$servername = $_ENV['DB_HOST'] ?? '';
-$username = $_ENV['DB_USER'] ?? '';
-$password = $_ENV['DB_PASS'] ?? '';
-$dbname = $_ENV['DB_NAME'] ?? '';
+$servername = $_ENV['OLD_DB_HOST'] ?? '';
+$username = $_ENV['OLD_DB_USER'] ?? '';
+$password = $_ENV['OLD_DB_PASS'] ?? '';
+$dbname = $_ENV['OLD_DB_NAME'] ?? '';
 
 try {
     $conn = new PDO(
