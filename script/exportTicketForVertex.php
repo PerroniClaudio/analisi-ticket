@@ -11,7 +11,7 @@ use Google\Cloud\Storage\StorageClient;
 // ----------------------------------------------------
 
 // Parametri configurabili per il filtro dei dati
-$filterYear = '2023';  // Anno dei ticket da estrarre
+$filterYear = '2024';  // Anno dei ticket da estrarre
 $filterCompany = 'Labor Medical Srl';  // Nome dell'azienda da filtrare
 
 // Carica le variabili d'ambiente dal file .env

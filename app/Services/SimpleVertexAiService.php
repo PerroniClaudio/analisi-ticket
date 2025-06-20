@@ -154,46 +154,77 @@ class SimpleVertexAiService {
      */
     private function createPromptForTicket(array $ticket): string {
         $subject = $ticket['obj'] ?? $ticket['subject'] ?? '';
-        $description = $ticket['software_description'] ?? '';
         $type = $ticket['type'] ?? $ticket['ticket_type'] ?? '';
         $company = $ticket['azienda'] ?? $ticket['company_name'] ?? '';
 
-        // Conta messaggi e aggiornamenti
-        $messagesCount = count($ticket['all_messages_json'] ?? []);
-        $updatesCount = count($ticket['all_updates_json'] ?? []);
-
-        // Estrai i primi messaggi per contesto
-        $firstMessages = '';
+        // 1. Unisci messaggi e aggiornamenti in un'unica timeline
+        $timelineEvents = [];
         if (!empty($ticket['all_messages_json'])) {
-            $messages = array_slice($ticket['all_messages_json'], 0, 3);
-            foreach ($messages as $msg) {
-                $firstMessages .= "- " . substr($msg['message'] ?? '', 0, 200) . "\n";
+            foreach ($ticket['all_messages_json'] as $msg) {
+                $timelineEvents[] = [
+                    'date' => $msg['date'] ?? '',
+                    'text' => sprintf(
+                        "[%s] Messaggio da %s: %s",
+                        $msg['date'] ?? 'N/D',
+                        $msg['author'] ?? 'Sconosciuto',
+                        $msg['message'] ?? '' // Testo completo, senza substr!
+                    ),
+                ];
+            }
+        }
+        if (!empty($ticket['all_updates_json'])) {
+            foreach ($ticket['all_updates_json'] as $upd) {
+                $timelineEvents[] = [
+                    'date' => $upd['date'] ?? '',
+                    'text' => sprintf(
+                        "[%s] Aggiornamento di stato - %s: %s",
+                        $upd['date'] ?? 'N/D',
+                        $upd['type'] ?? 'Tipo sconosciuto',
+                        $upd['value'] ?? '' // Valore completo, senza substr!
+                    ),
+                ];
             }
         }
 
-        return "Analizza questo ticket di supporto tecnico e stima SOLO il numero di minuti necessari per risolverlo.
+        // 2. Ordina la timeline per data per coerenza cronologica
+        usort($timelineEvents, function ($a, $b) {
+            return strtotime($a['date']) <=> strtotime($b['date']);
+        });
 
-TICKET INFO:
-Oggetto: {$subject}
-Descrizione: {$description}
-Tipo: {$type}
-Azienda: {$company}
-Numero messaggi: {$messagesCount}
-Numero aggiornamenti: {$updatesCount}
+        // 3. Crea la stringa della cronologia completa
+        $conversationChronology = '';
+        foreach ($timelineEvents as $event) {
+            $conversationChronology .= $event['text'] . "\n---\n";
+        }
 
-PRIMI MESSAGGI:
-{$firstMessages}
+        // 4. Costruisci il prompt finale
+        // Usiamo la sintassi HEREDOC per una migliore leggibilità
+        return <<<PROMPT
+            # RUOLO
+            Sei un analista di supporto tecnico con grande esperienza, specializzato nel valutare la complessità dei ticket e stimare il tempo di lavoro necessario.
 
-ISTRUZIONI:
-- Considera la complessità tecnica del problema
-- Considera il numero di interazioni cliente-tecnico
-- Considera il tipo di supporto richiesto
-- Considera che i tempi tipici vanno da 15 a 480 minuti
-- Rispondi SOLO con un numero intero di minuti
-- Non aggiungere testo, spiegazioni o unità di misura
-- Il risultato deve essere un multiplo di 10
+            # CONTESTO
+            Ti fornirò la cronologia completa di un ticket di supporto. Il tuo compito è stimare il "tempo di lavoro effettivo" in minuti che un agente ha impiegato per risolverlo.
+            Per "tempo di lavoro effettivo" si intende il tempo speso a leggere, capire, ricercare la soluzione e scrivere la risposta. Non include il tempo di attesa della risposta del cliente.
 
-RISPOSTA (solo numero):";
+            # DATI DEL TICKET
+            Oggetto: {$subject}
+            Tipo: {$type}
+            Azienda: {$company}
+
+            # CRONOLOGIA COMPLETA DEL TICKET
+            {$conversationChronology}
+
+            # ISTRUZIONI FINALI
+            1. Analizza tutta la cronologia per capire la complessità del problema e le azioni dell'agente.
+            2. Considera il numero di interazioni e la natura tecnica della richiesta.
+            3. Basandoti sulla tua analisi, fornisci la stima del tempo di lavoro effettivo.
+            4. Rispondi SOLO e UNICAMENTE con un numero intero che rappresenta i minuti.
+            5. Non aggiungere testo, spiegazioni, unità di misura (come "minuti") o qualsiasi altra parola.
+            6. Se non sei sicuro, fornisci una stima ragionevole basata sulla tua esperienza.
+            7. Il risultato deve essere un numero intero compreso tra 15 e 480 minuti (8 ore) e deve essere un multiplo di 10.
+            STIMA IN MINUTI (solo numero intero):
+        PROMPT;
     }
 
     /**
