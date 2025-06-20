@@ -14,10 +14,14 @@ use Google\Cloud\Storage\StorageClient;
 $filterYear = '2023';  // Anno dei ticket da estrarre
 $filterCompany = 'Labor Medical Srl';  // Nome dell'azienda da filtrare
 
-$servername = "34.154.245.161";
-$username = "ad_ifortech";
-$password = "PQAuNBeQc2";
-$dbname = "erp_ifortech_com";
+// Carica le variabili d'ambiente dal file .env
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv->load();
+
+$servername = $_ENV['DB_HOST'] ?? '';
+$username = $_ENV['DB_USER'] ?? '';
+$password = $_ENV['DB_PASS'] ?? '';
+$dbname = $_ENV['DB_NAME'] ?? '';
 
 try {
     $conn = new PDO(
